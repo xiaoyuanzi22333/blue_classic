@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import './models/homePage.dart';
+import 'pages/homePage.dart';
 import 'package:provider/provider.dart';
 import './models/bluetooth_model.dart';
 
 void main() {
   runApp(
     ChangeNotifierProvider(
-      create: (_) => BluetoothModel(),
+      create: (context) => BluetoothModel(),
       child: const MyApp(),
     )
   );

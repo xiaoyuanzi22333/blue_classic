@@ -1,8 +1,11 @@
 import 'dart:async';
-import 'package:provider/provider.dart';
+// import 'package:blue_classic/models/bluetooth_device.dart';
+// import 'package:blue_classic/models/bluetooth_monitor.dart';
+// import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 import 'package:bluetooth_classic/bluetooth_classic.dart';
 import 'package:bluetooth_classic/models/device.dart';
+import 'package:flutter/services.dart';
 
 class BluetoothModel with ChangeNotifier {
   final BluetoothClassic _bluetoothClassicPlugin = BluetoothClassic();
@@ -10,10 +13,16 @@ class BluetoothModel with ChangeNotifier {
   List<Device> _discoveredDevices = [];
   List<Device> _unknownDevices = [];
   bool _scanning = false;
+  bool _gettingData = false;
   int _deviceStatus = Device.disconnected;
   Device? _connectedDevice;
+
+  StreamSubscription<Uint8List>? _dataSubscription;
   StreamSubscription? _deviceDiscoveredSubscription;
+
   late final Stream<Device> _deviceDiscoveredStream;
+  late final Stream<Uint8List> _dataStream;
+  Uint8List _receiveData = Uint8List(0);
 
   BluetoothModel() {
     _initBluetooth();
@@ -25,11 +34,14 @@ class BluetoothModel with ChangeNotifier {
   bool get scanning => _scanning;
   int get deviceStatus => _deviceStatus;
   Device? get connectedDevice => _connectedDevice;
+  Uint8List get receiveData => _receiveData;
 
   Future<void> _initBluetooth() async {
+    debugPrint("init the Bluetooth");
     await _bluetoothClassicPlugin.initPermissions();
     await _getDevices();
     _deviceDiscoveredStream = _bluetoothClassicPlugin.onDeviceDiscovered().asBroadcastStream();
+    _dataStream = _bluetoothClassicPlugin.onDeviceDataReceived().asBroadcastStream();
   }
 
   Future<void> _getDevices() async {
@@ -39,12 +51,19 @@ class BluetoothModel with ChangeNotifier {
   }
 
   void _onDeviceDiscovered(Device event) {
+    debugPrint("get device discovered");
     if (!_discoveredDevices.any((device) => device.address == event.address) &&
         (event.name != null)) {
       _discoveredDevices = [..._discoveredDevices, event];
     } else {
       _unknownDevices = [..._unknownDevices, event];
     }
+    notifyListeners();
+  } 
+
+  void _onDataReceived(Uint8List event) {
+    debugPrint("adding data received");
+    _receiveData = Uint8List.fromList([...receiveData, ...event]);
     notifyListeners();
   }
 
@@ -65,6 +84,23 @@ class BluetoothModel with ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> getData() async {
+    
+    if (_gettingData){
+      debugPrint("stop collecting data");
+      _dataSubscription?.cancel();
+      _dataSubscription = null;
+      _gettingData = false;
+    } else {
+      ClearReceivedData();
+      debugPrint("start collecting data");
+      _dataSubscription?.cancel();
+      _dataSubscription = _dataStream.listen(_onDataReceived);
+      _gettingData = true;
+    }
+    notifyListeners();
+  }
+
   Future<void> connectToDevice(Device device) async {
     try {
       await _bluetoothClassicPlugin.connect(device.address, "00001101-0000-1000-8000-00805f9b34fb");
@@ -77,16 +113,6 @@ class BluetoothModel with ChangeNotifier {
     }
   }
 
-  Future<void> pingDevice() async {
-    if (_deviceStatus == Device.connected) {
-      try {
-        await _bluetoothClassicPlugin.write("ping");
-      } catch (e) {
-        throw Exception('Failed to send ping: ${e.toString()}');
-      }
-    }
-  }
-
   Future<void> disconnect() async {
     await _bluetoothClassicPlugin.disconnect();
     _deviceStatus = Device.disconnected;
@@ -95,132 +121,25 @@ class BluetoothModel with ChangeNotifier {
   }
 
   void clearScannedDevices() {
+    debugPrint("device clear");
     _discoveredDevices = [];
     _unknownDevices = [];
     notifyListeners();
   }
 
+  void ClearReceivedData(){
+    debugPrint("received data clear");
+    _receiveData = Uint8List(0);
+    notifyListeners();
+  }
+
   @override
   void dispose() {
+    debugPrint("dipose the BluetoothModel");
     _deviceDiscoveredSubscription?.cancel();
+    _dataSubscription?.cancel();
     super.dispose();
   }
 }
 
 
-class BluetoothScreen extends StatelessWidget {
-  const BluetoothScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Bluetooth Scanner'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () => context.read<BluetoothModel>().clearScannedDevices(),
-          ),
-        ],
-      ),
-      body: Consumer<BluetoothModel>(
-        builder: (context, model, child) {
-          return Column(
-            children: [
-              // Status Bar
-              Container(
-                padding: const EdgeInsets.all(8),
-                color: Colors.grey[200],
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Status: ${model.deviceStatus == Device.connected ? "Connected" : "Disconnected"}'),
-                    if (model.connectedDevice != null)
-                      Text('Connected to: ${model.connectedDevice?.name ?? model.connectedDevice?.address}'),
-                  ],
-                ),
-              ),
-
-              // Scan Button
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: ElevatedButton.icon(
-                  onPressed: model.scan,
-                  icon: Icon(model.scanning ? Icons.stop : Icons.search),
-                  label: Text(model.scanning ? "Stop Scan" : "Start Scan"),
-                ),
-              ),
-
-              // Device Lists
-              Expanded(
-                child: ListView(
-                  children: [
-                    if (model.devices.isNotEmpty) ...[
-                      const ListTile(
-                        title: Text('Paired Devices', style: TextStyle(fontWeight: FontWeight.bold)),
-                      ),
-                      ...model.devices.map((device) => ListTile(
-                            title: Text(device.name ?? 'Unknown Device'),
-                            subtitle: Text(device.address),
-                            trailing: model.deviceStatus == Device.connected &&
-                                    model.connectedDevice?.address == device.address
-                                ? const Icon(Icons.bluetooth_connected, color: Colors.blue)
-                                : const Icon(Icons.bluetooth),
-                            onTap: () => model.connectToDevice(device),
-                          )),
-                    ],
-                    if (model.discoveredDevices.isNotEmpty) ...[
-                      const ListTile(
-                        title: Text('Discovered Devices', style: TextStyle(fontWeight: FontWeight.bold)),
-                      ),
-                      ...model.discoveredDevices.map((device) => ListTile(
-                            title: Text(device.name ?? 'Unknown Device'),
-                            subtitle: Text(device.address),
-                            trailing: const Icon(Icons.bluetooth_searching),
-                            onTap: () => model.connectToDevice(device),
-                          )),
-                    ],
-                    if (model.unknownDevices.isNotEmpty) ...[
-                      const ListTile(
-                        title: Text('Unknown Devices', style: TextStyle(fontWeight: FontWeight.bold)),
-                      ),
-                      ...model.unknownDevices.map((device) => ListTile(
-                            title: Text(device.name ?? 'Unknown Device'),
-                            subtitle: Text(device.address),
-                            trailing: const Icon(Icons.bluetooth_searching),
-                            onTap: () => model.connectToDevice(device),
-                          )),
-                    ],
-                  ],
-                ),
-              ),
-
-              // Connected Device Controls
-              if (model.deviceStatus == Device.connected)
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      ElevatedButton(
-                        onPressed: model.pingDevice,
-                        child: const Text('Ping Device'),
-                      ),
-                      ElevatedButton(
-                        onPressed: model.disconnect,
-                        child: const Text('Disconnect'),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
