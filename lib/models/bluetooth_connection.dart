@@ -19,18 +19,16 @@ class _BluetoothScreenState extends State<BluetoothScreen> {
   bool _scanning = false;
   int _deviceStatus = Device.disconnected;
   Device? _connectedDevice;
-  // Uint8List _data = Uint8List(0);
+  // StreamController<Device> streamController = StreamController<Device>();
 
   StreamSubscription? _deviceDiscoveredSubscription;
-
-  // 将 onDeviceDiscovered 转换为广播流
   late final Stream<Device> _deviceDiscoveredStream;
+  
 
   @override
   void initState() {
     super.initState();
     _initBluetooth();
-    // _setupListeners();
     // 将 onDeviceDiscovered 转换为广播流
     _deviceDiscoveredStream = _bluetoothClassicPlugin.onDeviceDiscovered().asBroadcastStream();
     _deviceDiscoveredSubscription?.cancel();
@@ -75,10 +73,6 @@ class _BluetoothScreenState extends State<BluetoothScreen> {
       // 监听设备发现。这只会监听一次，不会重复订阅。
       _deviceDiscoveredSubscription?.cancel();
       _deviceDiscoveredSubscription = null;
-debugPrint("repick");
-debugPrint("repick");
-debugPrint("repick");
-debugPrint("repick");
       _deviceDiscoveredSubscription = _deviceDiscoveredStream.listen(_onDeviceDiscovered);
 
       setState(() {
@@ -182,7 +176,8 @@ debugPrint("repick");
   @override
   void dispose() {
     // 取消设备发现的订阅，防止内存泄漏
-    _deviceDiscoveredSubscription!.cancel();
+
+    _deviceDiscoveredSubscription?.cancel();
     _deviceDiscoveredSubscription = null;
     super.dispose();
   }

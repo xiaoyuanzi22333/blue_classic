@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import './bluetooth_controller.dart';
+// import './bluetooth_connection.dart';
+// import './bluetooth_controller.dart';
+import './bluetooth_model.dart';
 
 
 class HomePage extends StatelessWidget {

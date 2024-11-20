@@ -10,8 +10,8 @@ dependencies:
   flutter:
     sdk: flutter
   bluetooth_classic: ^0.0.2
-  flutter_bluetooth_serial: ^0.4.0
   rxdart: ^0.28.0
+  provider: ^6.1.2
 
 dev_dependencies:
   flutter_test:
