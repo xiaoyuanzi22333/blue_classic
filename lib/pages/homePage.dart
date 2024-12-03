@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 // import './bluetooth_controller.dart';
 // import '../models/bluetooth_model.dart';
 import 'package:blue_classic/pages/scanner.dart';
+import 'package:blue_classic/pages/wifiPage.dart';
 
 
 class HomePage extends StatelessWidget {
@@ -26,6 +27,16 @@ class HomePage extends StatelessWidget {
             const SizedBox(height: 100),
             Image.asset('assets/pivot-bme-full-eng.png'),
             const SizedBox(height: 100),
+
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const WifiInfoScreen()),
+                );
+              },
+              child: const Text('Go to Wifi Page'),
+            ),
             ElevatedButton(
               onPressed: () {
                 Navigator.push(
@@ -35,6 +46,7 @@ class HomePage extends StatelessWidget {
               },
               child: const Text('Go to BluetoothScreen Page'),
             ),
+            
           ],
         ),
       ),

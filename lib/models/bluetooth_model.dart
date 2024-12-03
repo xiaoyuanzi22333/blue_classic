@@ -62,6 +62,7 @@ class BluetoothModel with ChangeNotifier {
   } 
 
   void _onDataReceived(Uint8List event) {
+    debugPrint(event.toString());
     debugPrint("adding data received");
     _receiveData = Uint8List.fromList([...receiveData, ...event]);
     notifyListeners();
@@ -92,7 +93,7 @@ class BluetoothModel with ChangeNotifier {
       _dataSubscription = null;
       _gettingData = false;
     } else {
-      ClearReceivedData();
+      clearReceivedData();
       debugPrint("start collecting data");
       _dataSubscription?.cancel();
       _dataSubscription = _dataStream.listen(_onDataReceived);
@@ -127,10 +128,14 @@ class BluetoothModel with ChangeNotifier {
     notifyListeners();
   }
 
-  void ClearReceivedData(){
+  void clearReceivedData(){
     debugPrint("received data clear");
     _receiveData = Uint8List(0);
     notifyListeners();
+  }
+
+  void sendMessage(){
+    _bluetoothClassicPlugin.write('wav_require');
   }
 
   @override

@@ -75,6 +75,10 @@ class BluetoothMonitor extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       ElevatedButton(
+                        onPressed: model.sendMessage,
+                        child: const Text('SendMessage'),
+                      ),
+                      ElevatedButton(
                         onPressed: model.disconnect,
                         child: const Text('Disconnect'),
                       ),
